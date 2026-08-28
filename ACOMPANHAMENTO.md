@@ -2,9 +2,9 @@
 
 **Integrante:** Paula Thamyres da Silva Femina - @Paula-Thamyres https://github.com/Paula-Thamyres
 
-Élcio Berilo Barbosa dos Santos Júnior - @elciobbsjr https://github.com/elciobbsjr
+                Élcio Berilo Barbosa dos Santos Júnior - @elciobbsjr https://github.com/elciobbsjr
 
-**Repositório:** `rag-vendefacil-<seu-grupo>-<seu-sobrenome>`
+**Repositório:** `rag-vendefacil-grupo03-Costa-Femina-Santos>`
 
 ---
 
@@ -46,6 +46,45 @@ estrutura do JSON, porque só pelo exemplo do enunciado eu não tinha como saber
 os três bugs de mapeamento de campo (customers, products, stores) e sugeriu também
 capturar `state`/`module` dos tickets. As correções em si eu revisei e testei rodando
 contra o dataset real antes de aceitar.
+
+
+## Encontro 2 - 2026-08-28
+
+**Etapa:** 2 - Busca híbrida e filtragem por metadados
+
+### Relato individual - Élcio Berilo Barbosa dos Santos Júnior
+
+Hoje fiquei responsável pela implementação do Query Analyzer da Etapa 2. Criei o arquivo `src/query_analyzer.py` para receber uma pergunta em linguagem natural e transformar as informações identificadas em filtros estruturados de metadados.
+
+Escolhi fazer o Query Analyzer por regras, em vez de usar LLM, porque para esse caso ficou mais simples, determinístico e sem depender de API externa. Criei uma normalização para tratar diferenças de maiúsculas/minúsculas, acentos e espaços, então termos como "São Paulo", "sao paulo" ou "SÃO PAULO" conseguem ser tratados da mesma forma.
+
+Também adicionei um dicionário de estados para converter nomes completos para as respectivas siglas, como `Minas Gerais -> MG` e `São Paulo -> SP`, além de sinônimos para os tipos de documento, por exemplo `chamado/chamados -> ticket`.
+
+Usei um modelo Pydantic (`QueryFilters`) para organizar os filtros que podem ser retornados, como `doc_type`, `state`, `module`, `customer_id`, `priority` e `status`.
+
+Uma decisão importante foi não aceitar qualquer valor encontrado na pergunta diretamente. O Query Analyzer carrega os valores que realmente existem nos metadados do índice FAISS e só retorna o filtro quando esse valor é válido. Isso evita gerar filtros que nunca vão encontrar resultados na etapa de busca.
+
+Nos testes, a pergunta:
+
+`Quais tickets de clientes de Minas Gerais estão relacionados ao módulo de estoque?`
+
+retornou:
+
+`{'doc_type': 'ticket', 'state': 'MG', 'module': 'VendeFácil Estoque'}`
+
+Também testei com perguntas para São Paulo e prioridade alta. Para validar que o código não estava inventando valores, fiz um teste com:
+
+`Mostre os tickets de Wakanda do módulo abacaxi`
+
+e o resultado foi somente:
+
+`{'doc_type': 'ticket'}`
+
+Isso aconteceu porque `Wakanda` e `abacaxi` não existem nos metadados do índice, então esses filtros foram descartados.
+
+Durante o primeiro teste apareceu o erro `ModuleNotFoundError: No module named 'pydantic'`, porque a dependência ainda não estava instalada no ambiente. Depois de instalar as dependências do projeto, consegui executar o Query Analyzer normalmente e validar os testes.
+
+**Uso de IA:** usei o ChatGPT para me ajudar a organizar a estrutura inicial do Query Analyzer e entender como separar normalização, identificação dos filtros e validação. Ajustei o código para trabalhar diretamente com os valores presentes no índice FAISS do projeto e fui testando os casos até confirmar que filtros inexistentes não eram retornados.
 
 ### Resumo do dia
 
