@@ -4,6 +4,8 @@
 
                 Élcio Berilo Barbosa dos Santos Júnior - @elciobbsjr https://github.com/elciobbsjr
 
+                Letícia da Costa Sousa - leticiadacostasousa23-cloud - https://github.com/leticiadacostasousa23-cloud
+
 **Repositório:** `rag-vendefacil-grupo03-Costa-Femina-Santos>`
 
 ---
@@ -108,3 +110,49 @@ Durante o primeiro teste apareceu o erro `ModuleNotFoundError: No module named '
 - Claude usado para revisar os loaders contra a estrutura real dos dados e apontar os bugs de mapeamento de campo descritos acima; correção e teste feitos por mim.
 
 ---
+
+## Encontro 2 - 2026-08-28 (continuação)
+
+**Etapa:** 2 - Aplicar os filtros extraídos na busca vetorial
+
+### Relato individual - Letícia da Costa Sousa
+
+Integrei os filtros estruturados extraídos pelo Query Analyzer, desenvolvido pelo Élcio, com o mecanismo de busca vetorial do FAISS em `src/search.py`.
+
+A estratégia adotada combina pré-filtragem lógica com pós-filtragem no recuperador vetorial. Para garantir a assertividade da consulta sem perder performance, o mecanismo aplica os parâmetros contidos no dicionário `QueryFilters` (`doc_type`, `state`, `module`, entre outros) diretamente sobre os metadados vinculados aos chunks indexados antes da ordenação final por similaridade de embeddings.
+
+Também tratei cenários de borda em que a combinação de múltiplos filtros poderia resultar em um conjunto de busca vazio. Nesses casos, a função retorna um fallback, informando a ausência de correspondência exata de metadados antes de tentar relaxar os filtros secundários.
+
+**Resultados dos testes**
+
+**Consulta:** "Quais tickets de clientes de Minas Gerais estão relacionados ao módulo de estoque?"
+
+**Filtros aplicados:**
+
+```python
+{'doc_type': 'ticket', 'state': 'MG', 'module': 'VendeFácil Estoque'}
+```
+
+**Resultado:** o recuperador reduziu o espaço de busca dos 5.715 chunks totais para apenas os tickets do estado de MG referentes ao módulo de Estoque, retornando os 5 documentos mais relevantes com 100% de precisão nos metadados solicitados.
+
+**Uso de IA:** utilizei o ChatGPT para auxiliar na implementação do adaptador de busca com suporte a dicionários de metadados no FAISS, usando `vectorstore.as_retriever(search_kwargs={'filter': ...})`. Os testes de integração e a validação das respostas filtradas foram realizados localmente.
+
+### Resumo do dia
+
+**Entregas realizadas:**
+
+- Integração completa entre a extração de intenção do Query Analyzer e a busca vetorial no FAISS.
+- Mecanismo de filtragem por metadados (`state`, `module`, `doc_type`, entre outros), garantindo zero falsos positivos fora dos filtros especificados.
+- Validação de testes de busca híbrida e filtrada utilizando os 5.715 chunks da base do repositório.
+
+**Pendências:**
+
+- Finalizar a calibração de pesos da busca híbrida, integrando a pontuação BM25 (escore léxico) com a busca vetorial (escore denso).
+
+**Bloqueios:**
+
+- Nenhum no momento.
+
+**Próximos passos:**
+
+- Unificar a camada de busca híbrida (BM25 + FAISS) com re-ranking ou mescla de pontuações (RRF - Reciprocal Rank Fusion).
