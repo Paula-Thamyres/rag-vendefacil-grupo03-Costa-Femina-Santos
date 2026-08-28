@@ -2,6 +2,8 @@
 
 **Integrante:** Paula Thamyres da Silva Femina - @Paula-Thamyres https://github.com/Paula-Thamyres
 
+Élcio Berilo Barbosa dos Santos Júnior - @elciobbsjr https://github.com/elciobbsjr
+
 **Repositório:** `rag-vendefacil-<seu-grupo>-<seu-sobrenome>`
 
 ---
