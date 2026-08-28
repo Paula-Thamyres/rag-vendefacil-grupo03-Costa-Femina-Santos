@@ -1,6 +1,6 @@
 # Mini Desafio RAG - VendeFácil
 
-**Autor:** [Seu Nome] - [@seu-usuario-github](https://github.com/seu-usuario-github)
+**Autor:** Paula Thamyres da Silva Femina - @paula-thamyres - (https://github.com/Paula-Thamyres)
 **Repositório base:** [mini-desafio-rag-vendefacil](https://github.com/feliperafael/mini-desafio-rag-vendefacil)
 
 Assistente RAG Corporativo para a VendeFácil Tecnologia Ltda., empresa fictícia de
