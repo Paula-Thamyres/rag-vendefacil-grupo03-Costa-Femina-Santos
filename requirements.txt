@@ -7,3 +7,5 @@ pydantic
 sentence-transformers
 pypdf
 pandas
+
+rank_bm25

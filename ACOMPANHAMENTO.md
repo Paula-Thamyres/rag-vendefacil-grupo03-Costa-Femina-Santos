@@ -111,6 +111,7 @@ Durante o primeiro teste apareceu o erro `ModuleNotFoundError: No module named '
 
 ---
 
+<<<<<<< HEAD
 ## Encontro 2 - 2026-08-28 (continuação)
 
 **Etapa:** 2 - Aplicar os filtros extraídos na busca vetorial
@@ -156,3 +157,35 @@ Também tratei cenários de borda em que a combinação de múltiplos filtros po
 **Próximos passos:**
 
 - Unificar a camada de busca híbrida (BM25 + FAISS) com re-ranking ou mescla de pontuações (RRF - Reciprocal Rank Fusion).
+=======
+### Relato individual - Paula Thamyres da Silva Femina
+
+Hoje fiquei com o item 2 da Etapa 2: combinar a busca densa (embeddings, via FAISS) com a busca esparsa (BM25), fundindo os dois rankings. Criei o arquivo
+`src/hybrid_search.py` em cima do índice que já tinha montado na Etapa 1 - não precisei reprocessar nenhum arquivo de origem, só li os chunks direto do
+docstore do FAISS pra montar o índice BM25 em cima do mesmo conjunto de documentos.
+
+A primeira dúvida que tive foi como fundir os dois rankings, porque densa e esparsa devolvem scores em escalas totalmente diferentes (cosseno de
+embedding não é comparável com score de BM25). Segui a recomendação do enunciado e usei Reciprocal Rank Fusion em vez de somar os scores: pra cada
+recuperador, cada documento ganha `1 / (60 + posição no ranking)`, e eu somo essa pontuação nos dois rankings. Quem aparece bem posicionado nos dois
+recuperadores sobe, e quem só aparece em um ainda tem chance de entrar no top-k final se a posição for boa o suficiente.
+
+Pra montar o BM25 escrevi uma tokenização simples (minúsculo, sem acento, só letra/número) porque sem isso "São Paulo" e "sao paulo" viravam tokens
+diferentes e o BM25 perdia sobreposição de termo à toa - reaproveitei amesma lógica de normalização que o Élcio já tinha usado no Query Analyzer,
+só que aplicada token a token em vez de string inteira.
+
+Fiz questão de escolher perguntas de teste que mostrassem os dois lados falhando sozinhos, como pede o enunciado: uma pergunta bem parafraseada, sem
+nenhum termo literal do documento, pra evidenciar onde o BM25 (que só olha sobreposição de palavra) fica atrás do denso; e uma pergunta citando o
+código exato de um ticket, onde o denso tende a perder pro BM25, que acha o identificador de cara mesmo sem entender o "significado" da frase. Rodei as
+duas buscas separadas e a fusão lado a lado pra cada pergunta, pra deixar registrado o caso em que cada recuperador sozinho erra e a fusão corrige.
+
+Uma coisa que me deixou em dúvida no início foi se o item 3 do enunciado (aplicar os filtros extraídos na busca vetorial) era parte da Etapa 2 ou já
+seria Etapa 3 - reli o enunciado com calma e percebi que os itens 1, 2 e 3 são todos objetivos da própria Etapa 2 (a Etapa 3 é outra parte da trilha,
+sobre síntese/Pydantic/LGPD). Como a gente dividiu o trio por item dentro da Etapa 2, fiz só o item 2 (fusão) e deixei o item 3 (aplicar o filtro na
+busca) pro colega que ficou responsável por ele.
+
+**Uso de IA:** usei o Claude pra tirar essa dúvida sobre a divisão dos itens2 e 3 dentro do enunciado da Etapa 2, e pra revisar a implementação da fusão
+RRF (conferir se a fórmula estava certa e se eu não deveria somar os scores brutos das duas buscas). Também usei pra validar a lógica de tokenização do
+BM25 com um teste isolado antes de rodar contra o índice real. A escolha das perguntas de teste e a execução contra o índice FAISS da minha máquina eu
+fiz e conferi por mim.
+
+>>>>>>> 67755f9b291e6d376814f5090df3f88227862d6a
