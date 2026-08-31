@@ -111,7 +111,15 @@ Durante o primeiro teste apareceu o erro `ModuleNotFoundError: No module named '
 
 ---
 
-<<<<<<< HEAD
+> **Nota de manutenção (2026-08-31):** este bloco ficou salvo no repositório com
+> marcadores de conflito de merge (`<<<<<<<`, `=======`, `>>>>>>>`) ainda presentes
+> no arquivo, ou seja, o conflito entre os dois relatos abaixo nunca tinha sido
+> resolvido de fato - só commitado como estava. Os marcadores foram removidos aqui
+> para o arquivo voltar a ser Markdown válido, mas **nenhum conteúdo de nenhum dos
+> dois relatos foi alterado ou removido**. Ver também o relato do Élcio em
+> "Encontro 2 - 2026-08-31 (continuação)", que documenta que `src/search.py`
+> não estava de fato presente no código do repositório quando ele revisou a Etapa 2.
+
 ## Encontro 2 - 2026-08-28 (continuação)
 
 **Etapa:** 2 - Aplicar os filtros extraídos na busca vetorial
@@ -157,7 +165,13 @@ Também tratei cenários de borda em que a combinação de múltiplos filtros po
 **Próximos passos:**
 
 - Unificar a camada de busca híbrida (BM25 + FAISS) com re-ranking ou mescla de pontuações (RRF - Reciprocal Rank Fusion).
-=======
+
+---
+
+## Encontro 2 - 2026-08-28 (continuação) - item 2 da Etapa 2
+
+**Etapa:** 2 - Busca híbrida (densa + BM25) com fusão RRF
+
 ### Relato individual - Paula Thamyres da Silva Femina
 
 Hoje fiquei com o item 2 da Etapa 2: combinar a busca densa (embeddings, via FAISS) com a busca esparsa (BM25), fundindo os dois rankings. Criei o arquivo
@@ -187,8 +201,6 @@ busca) pro colega que ficou responsável por ele.
 RRF (conferir se a fórmula estava certa e se eu não deveria somar os scores brutos das duas buscas). Também usei pra validar a lógica de tokenização do
 BM25 com um teste isolado antes de rodar contra o índice real. A escolha das perguntas de teste e a execução contra o índice FAISS da minha máquina eu
 fiz e conferi por mim.
-
->>>>>>> 67755f9b291e6d376814f5090df3f88227862d6a
 
 ---
 
@@ -316,5 +328,97 @@ Uma decisão que mantive foi deixar o schema responsável somente pela validaç�
 **Uso de assistentes de IA:**
 
 - ChatGPT utilizado para auxiliar na estruturação dos modelos Pydantic, revisão das regras de consistência e criação dos casos de teste. A implementação foi executada e validada localmente através de `python src/test_schema.py`.
+
+---
+
+## Encontro 3 - [PREENCHER DATA]
+
+**Etapa:** 3 - Citação de evidência (item 2) e política de LGPD com três níveis (item 3)
+
+### Relato individual - [PREENCHER SEU NOME]
+
+> ⚠️ MODELO A PREENCHER - escreva em primeira pessoa, com o que você de fato
+> testou e observou rodando na SUA máquina. Não copie este texto sem editar -
+> na arguição do Demo Day qualquer linha pode ser questionada (seção 0.3).
+
+Hoje trabalhei nos itens 2 e 3 da Etapa 3. Criei `src/lgpd_policy.py`, responsável
+pela política de LGPD com três níveis (recusar / mascarar / responder), e
+`src/generate.py`, que integra a recuperação (Etapa 2), a política de LGPD e a
+chamada ao LLM para gerar respostas no formato `RAGResponse` já validado por
+Pydantic (`src/schema.py`, feito pelo Élcio no Encontro 3 anterior).
+
+A classificação de LGPD é feita por regras (regex sobre a pergunta normalizada),
+não pelo LLM, seguindo a mesma lógica que o Élcio já tinha usado no
+`query_analyzer.py` - o guia do desafio recomenda decidir isso de forma
+determinística, "porque filtrar por metadado é barato e determinístico; pedir
+para o LLM decidir depois é caro e falível". Como segunda camada de defesa,
+também recuso a resposta se TODOS os chunks recuperados tiverem
+`sensitivity="restrito"`, mesmo que a pergunta não bata em nenhum padrão de
+texto (caso de fraseado muito indireto).
+
+[PREENCHER: relate aqui o resultado de rodar `python src/test_lgpd_policy.py`
+e, com uma OPENAI_API_KEY configurada no `.env`, de rodar `python src/generate.py`
+com as 8 perguntas de teste (2 de recusa, 2 de mascaramento, 2 de resposta normal,
+2 fora de escopo). Descreva o que funcionou, o que não funcionou de primeira, e
+o que você ajustou.]
+
+[PREENCHER: se você calibrou o `OUT_OF_SCOPE_SCORE_THRESHOLD`, relate qual valor
+funcionou melhor pro índice de vocês e como você chegou nele.]
+
+**Uso de IA:** usei o Claude para [PREENCHER: descreva o que pediu - ex: "gerar a
+primeira versão de `lgpd_policy.py` e `generate.py`, revisar a integração com o
+`search.py` e o `hybrid_search.py` já existentes, e investigar por que o Élcio
+relatou não ter encontrado `src/search.py` no repositório mesmo havendo um relato
+anterior dizendo que ele existia"]. Ajustei/testei [PREENCHER: o que você de fato
+rodou e conferiu na sua máquina antes de aceitar o código].
+
+### Resumo do dia
+
+**Entreguei hoje:**
+
+- `src/lgpd_policy.py`: classificação de pergunta em recusar/mascarar/responder
+  por regras, mascaramento de e-mail/telefone/CPF/cartão, e segunda camada de
+  defesa baseada no `sensitivity` dos chunks recuperados.
+- `src/generate.py`: pipeline completo pergunta -> recuperação (Etapa 2) ->
+  guardrail de LGPD -> chamada ao LLM -> `RAGResponse` validado -> mascaramento
+  final se aplicável. Toda resposta não recusada cita `filepath` + `chunk_id` +
+  trecho literal.
+- Retry de validação: se a saída do LLM não bater com o schema Pydantic, o erro
+  é devolvido ao próprio modelo pedindo correção (até `MAX_RETRIES` tentativas),
+  sem `except: pass`.
+- `src/test_lgpd_policy.py`: testes de sanidade da classificação e do
+  mascaramento, sem depender de índice FAISS nem de API key.
+- `config.py` e `.env.example` na raiz do projeto, centralizando a
+  `OPENAI_API_KEY` e os parâmetros (`GENERATION_MODEL`, `MAX_RETRIES`,
+  `OUT_OF_SCOPE_SCORE_THRESHOLD`).
+- Corrigido `ACOMPANHAMENTO.md`: removidos marcadores de conflito de merge
+  (`<<<<<<<`/`=======`/`>>>>>>>`) que tinham ficado commitados no arquivo desde
+  o Encontro 2, sem apagar nenhum relato.
+- Adicionado `.env` ao `.gitignore` (crítico: o projeto passou a usar uma
+  API key de verdade a partir de hoje).
+
+**Ficou pendente:**
+
+- [PREENCHER conforme o que sobrar: ex. calibrar `OUT_OF_SCOPE_SCORE_THRESHOLD`
+  com perguntas reais do índice; integrar busca híbrida + filtro no mesmo fluxo
+  de recuperação (pendência já registrada pelo Élcio no Encontro 2); revisar
+  `requirements.txt` final]
+
+**Bloqueios em aberto:**
+
+- [PREENCHER, ou "Nenhum bloqueio técnico no momento"]
+
+**Próximo passo:**
+
+- Etapa 4: rodar o benchmark de 20 perguntas, medir a RAG Triad e montar a
+  interface de demonstração.
+
+**Uso de assistentes de IA:**
+
+- Claude usado para gerar a primeira versão de `lgpd_policy.py` e `generate.py`,
+  revisar a integração com os módulos já existentes de recuperação (Etapa 2), e
+  investigar a divergência entre o relato do Encontro 2 sobre `src/search.py` e
+  o relato do Élcio no Encontro 2 (continuação). [PREENCHER: o que você
+  pessoalmente rodou/testou/ajustou antes de aceitar.]
 
 ---
