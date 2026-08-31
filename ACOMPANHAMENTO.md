@@ -254,3 +254,67 @@ Com isso, foi possível concluir a parte de aplicação dos filtros na busca vet
 - ChatGPT utilizado para auxiliar na revisão da integração, diagnóstico da divergência entre os valores de módulo e organização dos testes. As alterações foram executadas e validadas localmente por meio das saídas do terminal.
 
 ---
+
+---
+
+## Encontro 3 - 2026-08-31
+
+**Etapa:** 3 - Síntese estruturada, evidência e guardrails de LGPD
+
+### Relato individual - Élcio Berilo Barbosa dos Santos Júnior
+
+Depois de finalizar a revisão da Etapa 2, comecei o item 1 da Etapa 3, ficando responsável pela estrutura e validação das respostas do RAG com Pydantic.
+
+Criei o arquivo `src/schema.py` com os modelos `SourceEvidence` e `RAGResponse`. O `SourceEvidence` organiza as informações da evidência que vai acompanhar cada resposta, mantendo `filepath`, `chunk_id` e `quotation`. Já o `RAGResponse` define a estrutura obrigatória da resposta final, incluindo `answer`, `confidence_level`, `sources_used`, `reasoning`, `is_refusal` e `refusal_reason`.
+
+Usei `Literal` nos campos que possuem valores fechados. Para `confidence_level`, por exemplo, só são aceitos `alta`, `media`, `baixa` ou `recusado`. Fiz isso porque deixar esses campos como `str` permitiria valores diferentes do padrão, como `"muito alta"` ou `"ALTA"`, o que quebraria a consistência esperada pelo restante do pipeline.
+
+Também implementei um `model_validator` para validar a relação entre recusa, nível de confiança, evidências e motivo da recusa. Se `is_refusal=True`, a resposta precisa ter `confidence_level="recusado"`, não pode possuir fontes e precisa informar um `refusal_reason`. Já quando `is_refusal=False`, a resposta precisa possuir pelo menos uma evidência, não pode utilizar confiança `recusado` e não deve possuir motivo de recusa.
+
+Para testar essas regras, criei o arquivo `src/test_schema.py` com cinco casos diferentes. Os dois primeiros verificam uma resposta normal válida e uma recusa válida, e ambos passaram na validação. Os outros três foram criados propositalmente de forma incorreta para verificar se o Pydantic realmente impediria respostas inconsistentes.
+
+No teste de resposta sem evidência, o modelo rejeitou corretamente a resposta porque `sources_used` estava vazio. No teste de recusa com confiança `alta`, o modelo também rejeitou a resposta porque uma recusa precisa obrigatoriamente utilizar `confidence_level="recusado"`. Por último, testei o valor `"muito alta"` no campo de confiança e o próprio `Literal` impediu a criação da resposta.
+
+A execução de `python src/test_schema.py` terminou com `VALIDAÇÃO: OK` para os dois casos válidos e `VALIDAÇÃO: ERRO ESPERADO` para os três casos inválidos, confirmando que as regras implementadas estão funcionando.
+
+Uma decisão que mantive foi deixar o schema responsável somente pela validação dos dados. O retry em caso de resposta inválida deverá ser feito na camada que chamar o LLM, porque é essa camada que consegue solicitar uma nova geração. Dessa forma, o `schema.py` continua independente do modelo ou serviço de IA escolhido para a síntese.
+
+**Uso de IA:** usei o ChatGPT para me ajudar a estruturar os modelos Pydantic, revisar as regras de consistência exigidas pelo enunciado e montar os testes de respostas válidas e inválidas. Executei os testes localmente e conferi os erros retornados pelo Pydantic em cada cenário antes de considerar essa parte validada.
+
+### Resumo do dia
+
+**Entreguei hoje:**
+
+- Implementação de `src/schema.py` com os modelos `SourceEvidence` e `RAGResponse`.
+- Uso de `Literal` para restringir os valores permitidos em `confidence_level` e `refusal_reason`.
+- Implementação de `model_validator` para garantir a consistência entre recusa, confiança, fontes e motivo.
+- Obrigatoriedade de pelo menos uma evidência para respostas não recusadas.
+- Criação de `src/test_schema.py` para validar o comportamento do schema.
+- Teste de resposta normal válida.
+- Teste de recusa válida.
+- Teste de resposta sem evidência, rejeitada corretamente.
+- Teste de recusa com nível de confiança incorreto, rejeitada corretamente.
+- Teste de `confidence_level="muito alta"`, rejeitado corretamente pelo `Literal`.
+- Execução dos testes com os dois casos válidos aprovados e os três casos inválidos retornando os erros esperados.
+
+**Ficou pendente:**
+
+- Integrar o `RAGResponse` à camada que fará a chamada do LLM.
+- Implementar o retry quando uma saída gerada pelo LLM não passar pela validação do Pydantic.
+- Integrar as evidências recuperadas pelo pipeline aos campos `filepath`, `chunk_id` e `quotation`.
+- Implementar os demais itens da Etapa 3, principalmente as regras de LGPD, mascaramento e tratamento de perguntas fora de escopo.
+
+**Bloqueios em aberto:**
+
+- Nenhum bloqueio na validação Pydantic. Os testes do schema executaram conforme esperado.
+
+**Próximo passo:**
+
+- Utilizar o `RAGResponse` como formato obrigatório da saída da etapa de síntese e integrar o retry na camada responsável pela chamada do LLM.
+- Dar continuidade aos demais objetivos da Etapa 3 com a divisão das tarefas entre os integrantes.
+
+**Uso de assistentes de IA:**
+
+- ChatGPT utilizado para auxiliar na estruturação dos modelos Pydantic, revisão das regras de consistência e criação dos casos de teste. A implementação foi executada e validada localmente através de `python src/test_schema.py`.
+
+---
