@@ -147,25 +147,35 @@ class QueryAnalyzer:
                         break
 
         # Módulo
+        module_matches = []
+
         for normalized_value, original_value in self.valid_values["module"].items():
 
-            candidates = {
-                normalized_value,
-                normalized_value.replace("vendefacil", "").strip(),
-            }
+            clean_value = normalized_value.replace("vendefacil", "").strip()
 
-            candidates.update(
-                word
-                for word in normalized_value.split()
-                if len(word) >= 4 and word != "vendefacil"
-            )
+            # Prioridade maior quando o valor real aparece diretamente na pergunta.
+            if contains(query, normalized_value):
+                module_matches.append((3, normalized_value, original_value))
 
-            if any(
-                candidate and contains(query, candidate)
-                for candidate in candidates
-            ):
-                filters.module = original_value
-                break
+            # Ex.: "VendeFácil Estoque" -> "estoque"
+            elif clean_value and contains(query, clean_value):
+                module_matches.append((2, normalized_value, original_value))
+
+            # Fallback por palavras relevantes
+            else:
+                words = [
+                    word
+                    for word in normalized_value.split()
+                    if len(word) >= 4 and word != "vendefacil"
+                ]
+
+                if any(contains(query, word) for word in words):
+                    module_matches.append((1, normalized_value, original_value))
+
+        if module_matches:
+            # Maior prioridade primeiro.
+            module_matches.sort(key=lambda item: item[0], reverse=True)
+            filters.module = module_matches[0][2]
 
         # Customer ID, prioridade e status
         for field in ["customer_id", "priority", "status"]:

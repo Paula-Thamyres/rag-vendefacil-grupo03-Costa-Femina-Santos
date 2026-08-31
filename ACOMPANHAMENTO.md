@@ -189,3 +189,68 @@ BM25 com um teste isolado antes de rodar contra o índice real. A escolha das pe
 fiz e conferi por mim.
 
 >>>>>>> 67755f9b291e6d376814f5090df3f88227862d6a
+
+---
+
+## Encontro 2 - 2026-08-31 (continuação)
+
+**Etapa:** 2 - Busca híbrida e filtragem por metadados
+
+### Relato individual - Élcio Berilo Barbosa dos Santos Júnior
+
+Hoje retomei a Etapa 2 para revisar a integração entre o Query Analyzer e a aplicação dos filtros na busca vetorial.
+
+Durante essa revisão, percebi que o item 3 da Etapa 2, referente à aplicação dos filtros extraídos na busca vetorial, aparecia no `ACOMPANHAMENTO.md` como já implementado, inclusive com referência ao arquivo `src/search.py`. Porém, ao conferir os arquivos atuais do repositório, essa implementação não estava presente. Por isso, precisei implementar e testar essa parte antes de considerar a Etapa 2 concluída.
+
+Criei o arquivo `src/search.py` para integrar o `QueryAnalyzer` com a busca vetorial no FAISS. A busca passou a receber os filtros estruturados extraídos da pergunta, como `doc_type`, `state` e `module`, e utilizar esses valores diretamente na recuperação dos documentos.
+
+Também utilizei um `fetch_k` maior na busca com filtro, porque o FAISS do LangChain primeiro recupera os candidatos por similaridade e só depois aplica os filtros de metadados. Dessa forma, evitamos casos em que existem documentos válidos na base, mas nenhum deles aparece entre os primeiros candidatos recuperados.
+
+Nos primeiros testes encontrei outro problema: para perguntas relacionadas ao módulo de estoque, o Query Analyzer estava retornando `VendeFácil Estoque`, enquanto os tickets utilizavam o valor `estoque` nos metadados. Por causa dessa diferença, a busca filtrada retornava zero documentos mesmo existindo tickets válidos.
+
+Ajustei a identificação do módulo no `query_analyzer.py` para priorizar o valor que realmente corresponde ao contexto da pergunta e aos metadados dos tickets. Depois da correção, o filtro passou a retornar `module: estoque`.
+
+Para validar a implementação, executei três consultas envolvendo estado e módulo:
+
+- tickets de Minas Gerais relacionados ao módulo de estoque;
+- tickets de São Paulo relacionados ao módulo de estoque;
+- chamados do Rio de Janeiro relacionados ao módulo de estoque.
+
+Em cada caso comparei a busca sem filtro com a busca filtrada. Sem os filtros apareciam documentos de outros estados, outros módulos e até outros tipos de documento. Com os filtros aplicados, os resultados ficaram restritos aos tickets que realmente possuíam os metadados solicitados.
+
+Também adicionei uma validação automática que verifica os metadados de cada documento retornado. Nos três testes a validação terminou com `Validação dos filtros: OK`.
+
+Com isso, foi possível concluir a parte de aplicação dos filtros na busca vetorial que ainda não estava efetivamente implementada no repositório.
+
+**Uso de IA:** usei o ChatGPT para revisar a integração entre o Query Analyzer e o FAISS, identificar por que a busca filtrada inicialmente retornava vazia e organizar os testes. A partir dos resultados no terminal, identifiquei a diferença entre `VendeFácil Estoque` e `estoque`, ajustei a lógica do Query Analyzer e executei novamente os testes até validar os três casos.
+
+### Resumo do dia
+
+**Entreguei hoje:**
+
+- Revisão da implementação da Etapa 2 e identificação de que o item 3 estava registrado no acompanhamento, mas ainda não estava presente no código do repositório.
+- Implementação de `src/search.py` para aplicar os filtros do Query Analyzer na busca vetorial.
+- Ajuste no `src/query_analyzer.py` para corrigir a identificação do módulo `estoque`.
+- Aplicação de `fetch_k` dimensionado para evitar perda de resultados em filtros seletivos.
+- Comparação de busca com e sem filtro para três perguntas específicas de estado e módulo.
+- Validação automática dos metadados dos documentos retornados.
+- Testes concluídos com `Validação dos filtros: OK` nos três casos.
+
+**Ficou pendente:**
+
+- Integrar a busca filtrada com a busca híbrida BM25 + FAISS + RRF em um fluxo único, caso seja necessário para a versão final da Etapa 2.
+- Revisar e organizar o `ACOMPANHAMENTO.md`, removendo os marcadores de conflito de merge que ainda ficaram no arquivo.
+
+**Bloqueios em aberto:**
+
+- Nenhum bloqueio técnico na aplicação dos filtros. Os testes com MG, SP e RJ retornaram resultados coerentes com os metadados solicitados.
+
+**Próximo passo:**
+
+- Finalizar a organização da Etapa 2 no repositório e seguir para a Etapa 3, mantendo a integração entre Query Analyzer, recuperação e filtros preparada para o restante do pipeline.
+
+**Uso de assistentes de IA:**
+
+- ChatGPT utilizado para auxiliar na revisão da integração, diagnóstico da divergência entre os valores de módulo e organização dos testes. As alterações foram executadas e validadas localmente por meio das saídas do terminal.
+
+---
