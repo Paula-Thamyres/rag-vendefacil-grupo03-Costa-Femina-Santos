@@ -1,4 +1,4 @@
-# Acompanhamento - Mini Desafio RAG VendeFácil
+﻿# Acompanhamento - Mini Desafio RAG VendeFácil
 
 **Integrante:** Paula Thamyres da Silva Femina - @Paula-Thamyres https://github.com/Paula-Thamyres
 
@@ -265,7 +265,7 @@ Com isso, foi possível concluir a parte de aplicação dos filtros na busca vet
 
 - ChatGPT utilizado para auxiliar na revisão da integração, diagnóstico da divergência entre os valores de módulo e organização dos testes. As alterações foram executadas e validadas localmente por meio das saídas do terminal.
 
----
+- ## Encontro 3 - 31/08/2026
 
 ---
 
@@ -331,94 +331,50 @@ Uma decisão que mantive foi deixar o schema responsável somente pela validaç�
 
 ---
 
-## Encontro 3 - [PREENCHER DATA]
+## Encontro 3 - 2026-08-31 (continuação)
 
 **Etapa:** 3 - Citação de evidência (item 2) e política de LGPD com três níveis (item 3)
 
-### Relato individual - [PREENCHER SEU NOME]
+### Relato individual - Paula Thamyres da Silva Femina
 
-> ⚠️ MODELO A PREENCHER - escreva em primeira pessoa, com o que você de fato
-> testou e observou rodando na SUA máquina. Não copie este texto sem editar -
-> na arguição do Demo Day qualquer linha pode ser questionada (seção 0.3).
+Hoje trabalhei nos itens 2 e 3 da Etapa 3: citação de evidência e política de LGPD com três níveis. Usei o Claude para gerar a primeira versão de `src/lgpd_policy.py` (classificação de pergunta em recusar/mascarar/responder por regras, mais mascaramento de e-mail/telefone/CPF/cartão) e `src/generate.py` (pipeline que liga a recuperação da Etapa 2 à política de LGPD e à chamada do LLM, validando a saída com o schema Pydantic do Élcio).
 
-Hoje trabalhei nos itens 2 e 3 da Etapa 3. Criei `src/lgpd_policy.py`, responsável
-pela política de LGPD com três níveis (recusar / mascarar / responder), e
-`src/generate.py`, que integra a recuperação (Etapa 2), a política de LGPD e a
-chamada ao LLM para gerar respostas no formato `RAGResponse` já validado por
-Pydantic (`src/schema.py`, feito pelo Élcio no Encontro 3 anterior).
+Rodei `python src/test_lgpd_policy.py` primeiro, sem precisar de chave de API — os 18 testes passaram (classificação de recusa direta e indireta, mascaramento, e o caso da segunda camada de defesa quando todos os chunks recuperados são `sensitivity="restrito"`).
 
-A classificação de LGPD é feita por regras (regex sobre a pergunta normalizada),
-não pelo LLM, seguindo a mesma lógica que o Élcio já tinha usado no
-`query_analyzer.py` - o guia do desafio recomenda decidir isso de forma
-determinística, "porque filtrar por metadado é barato e determinístico; pedir
-para o LLM decidir depois é caro e falível". Como segunda camada de defesa,
-também recuso a resposta se TODOS os chunks recuperados tiverem
-`sensitivity="restrito"`, mesmo que a pergunta não bata em nenhum padrão de
-texto (caso de fraseado muito indireto).
+Ao rodar `python src/generate.py` encontrei um erro de import: `config.py` fica na raiz do projeto, mas o script roda de dentro de `src/`, e o Python não achava o módulo. Corrigi adicionando a pasta raiz ao `sys.path` no início do `generate.py`.
 
-[PREENCHER: relate aqui o resultado de rodar `python src/test_lgpd_policy.py`
-e, com uma OPENAI_API_KEY configurada no `.env`, de rodar `python src/generate.py`
-com as 8 perguntas de teste (2 de recusa, 2 de mascaramento, 2 de resposta normal,
-2 fora de escopo). Descreva o que funcionou, o que não funcionou de primeira, e
-o que você ajustou.]
+As 8 perguntas de teste (2 recusa por LGPD, 2 mascaramento, 2 resposta normal, 2 fora de escopo) confirmaram o pipeline funcionando: a recusa de salário e a "folha por pessoa" funcionaram sem chamar o LLM; o e-mail do cliente CUST001 saiu mascarado (`ge***@***.br`) na resposta e na citação; a política de reembolso saiu com citação real do PDF; mas achei 2 falhas reais no detector de "fora de escopo" - "sincronização de estoque" foi recusada por engano, e "quem descobriu o Brasil" passou pro LLM quando devia ter sido recusada antes.
 
-[PREENCHER: se você calibrou o `OUT_OF_SCOPE_SCORE_THRESHOLD`, relate qual valor
-funcionou melhor pro índice de vocês e como você chegou nele.]
+Investiguei isso rodando um script de calibração (`src/check_threshold.py`) com 8 perguntas de teste (4 dentro do domínio, 4 fora), medindo a distância real do FAISS. Descobri que não existe um único valor de limiar que separe os dois grupos sem erro nesse conjunto - o erro mínimo possível já é o que a gente estava vendo (2 em 8). Decidimos documentar isso como limitação conhecida no README (com os números reais) em vez de tentar mascarar o problema, já que o guia valoriza esse tipo de diagnóstico honesto na Etapa 4.
 
-**Uso de IA:** usei o Claude para [PREENCHER: descreva o que pediu - ex: "gerar a
-primeira versão de `lgpd_policy.py` e `generate.py`, revisar a integração com o
-`search.py` e o `hybrid_search.py` já existentes, e investigar por que o Élcio
-relatou não ter encontrado `src/search.py` no repositório mesmo havendo um relato
-anterior dizendo que ele existia"]. Ajustei/testei [PREENCHER: o que você de fato
-rodou e conferiu na sua máquina antes de aceitar o código].
+**Uso de IA:** usei o Claude para gerar a primeira versão de `lgpd_policy.py` e `generate.py`, revisar a integração com os módulos já existentes de recuperação (Etapa 2), corrigir o erro de import do `config.py`, e investigar por que o detector de "fora de escopo" errava - o Claude sugeriu o script de calibração e analisou os números que eu rodei na minha máquina antes de decidirmos documentar como limitação em vez de tentar consertar.
 
 ### Resumo do dia
 
 **Entreguei hoje:**
 
-- `src/lgpd_policy.py`: classificação de pergunta em recusar/mascarar/responder
-  por regras, mascaramento de e-mail/telefone/CPF/cartão, e segunda camada de
-  defesa baseada no `sensitivity` dos chunks recuperados.
-- `src/generate.py`: pipeline completo pergunta -> recuperação (Etapa 2) ->
-  guardrail de LGPD -> chamada ao LLM -> `RAGResponse` validado -> mascaramento
-  final se aplicável. Toda resposta não recusada cita `filepath` + `chunk_id` +
-  trecho literal.
-- Retry de validação: se a saída do LLM não bater com o schema Pydantic, o erro
-  é devolvido ao próprio modelo pedindo correção (até `MAX_RETRIES` tentativas),
-  sem `except: pass`.
-- `src/test_lgpd_policy.py`: testes de sanidade da classificação e do
-  mascaramento, sem depender de índice FAISS nem de API key.
-- `config.py` e `.env.example` na raiz do projeto, centralizando a
-  `OPENAI_API_KEY` e os parâmetros (`GENERATION_MODEL`, `MAX_RETRIES`,
-  `OUT_OF_SCOPE_SCORE_THRESHOLD`).
-- Corrigido `ACOMPANHAMENTO.md`: removidos marcadores de conflito de merge
-  (`<<<<<<<`/`=======`/`>>>>>>>`) que tinham ficado commitados no arquivo desde
-  o Encontro 2, sem apagar nenhum relato.
-- Adicionado `.env` ao `.gitignore` (crítico: o projeto passou a usar uma
-  API key de verdade a partir de hoje).
+- `src/lgpd_policy.py`: classificação de pergunta em recusar/mascarar/responder, mascaramento de e-mail/telefone/CPF/cartão, segunda camada de defesa por `sensitivity` dos chunks.
+- `src/generate.py`: pipeline completo pergunta → recuperação (Etapa 2) → guardrail de LGPD → LLM → `RAGResponse` validado → mascaramento final. Toda resposta não recusada cita `filepath` + `chunk_id` + trecho literal.
+- `src/test_lgpd_policy.py`: 18 testes de sanidade, todos passando, sem precisar de API key.
+- `config.py` e `.env.example` centralizando a chave de API e os parâmetros.
+- `src/check_threshold.py`: script de calibração do limiar de "fora de escopo", com números reais do índice.
+- Testado de ponta a ponta com dados reais e LLM: as 8 perguntas de teste rodaram, com 6 de 8 corretas.
 
 **Ficou pendente:**
 
-- [PREENCHER conforme o que sobrar: ex. calibrar `OUT_OF_SCOPE_SCORE_THRESHOLD`
-  com perguntas reais do índice; integrar busca híbrida + filtro no mesmo fluxo
-  de recuperação (pendência já registrada pelo Élcio no Encontro 2); revisar
-  `requirements.txt` final]
+- O detector de "fora de escopo" ainda erra em 2 dos 8 casos de teste (1 falso positivo, 1 falso negativo) - por causa disso, os itens 2 e 3 da Etapa 3 não estão 100% comprovados com dados reais: só 1 das 2 perguntas de "mascarar" e 1 das 2 perguntas de "responder" chegaram a demonstrar o comportamento esperado, porque a outra foi interceptada pelo bug antes de chegar no LLM. Mitigação identificada (combinar palavra-chave de domínio + distância) mas não implementada por decisão do time - fica pro próximo encontro.
+- Integrar busca híbrida + filtro no mesmo fluxo de recuperação (pendência já registrada desde o Encontro 2).
 
 **Bloqueios em aberto:**
 
-- [PREENCHER, ou "Nenhum bloqueio técnico no momento"]
+- Nenhum bloqueio técnico no momento.
 
 **Próximo passo:**
 
-- Etapa 4: rodar o benchmark de 20 perguntas, medir a RAG Triad e montar a
-  interface de demonstração.
+- Etapa 4: rodar o benchmark de 20 perguntas, medir a RAG Triad e montar a interface de demonstração.
 
 **Uso de assistentes de IA:**
 
-- Claude usado para gerar a primeira versão de `lgpd_policy.py` e `generate.py`,
-  revisar a integração com os módulos já existentes de recuperação (Etapa 2), e
-  investigar a divergência entre o relato do Encontro 2 sobre `src/search.py` e
-  o relato do Élcio no Encontro 2 (continuação). [PREENCHER: o que você
-  pessoalmente rodou/testou/ajustou antes de aceitar.]
+- Claude usado para gerar `lgpd_policy.py` e `generate.py`, corrigir o erro de import do `config.py`, e investigar/calibrar o detector de fora de escopo junto comigo, rodando os testes na minha máquina e analisando os resultados reais.
 
 ---
