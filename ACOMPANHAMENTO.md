@@ -319,6 +319,7 @@ Uma decisão que mantive foi deixar o schema responsável somente pela validaç�
 
 ---
 
+## Encontro 3 - 2026-08-31 (continuação)
 
 **Etapa:** 3 - Citação de evidência (item 2) e política de LGPD com três níveis (item 3)
 
@@ -363,3 +364,5 @@ Investiguei isso rodando um script de calibração (`src/check_threshold.py`) co
 **Uso de assistentes de IA:**
 
 - Claude usado para gerar `lgpd_policy.py` e `generate.py`, corrigir o erro de import do `config.py`, e investigar/calibrar o detector de fora de escopo junto comigo, rodando os testes na minha máquina e analisando os resultados reais.
+
+---
