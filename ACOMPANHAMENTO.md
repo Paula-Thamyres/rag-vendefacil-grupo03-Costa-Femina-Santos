@@ -378,3 +378,59 @@ Investiguei isso rodando um script de calibração (`src/check_threshold.py`) co
 - Claude usado para gerar `lgpd_policy.py` e `generate.py`, corrigir o erro de import do `config.py`, e investigar/calibrar o detector de fora de escopo junto comigo, rodando os testes na minha máquina e analisando os resultados reais.
 
 ---
+
+Atividade fora do encontro síncrono - 2026-09-01 (continuação)
+
+Etapa: 4 - Correção da pendência do Encontro 3 (detector de "fora de escopo") antes de rodar o benchmark
+
+Relato individual - Paula Thamyres da Silva Femina
+
+Depois de colocar o arquivo de benchmark em benchmark/, decidi resolver a pendência registrada no Encontro 3 antes de seguir pra Etapa 4 de verdade: o detector de "fora de escopo" (is_out_of_scope() em src/generate.py) errava 2 de 8 perguntas de calibração — um falso positivo ("sincronização de estoque" sendo recusada por engano) e um falso negativo ("quem descobriu o Brasil" passando sem ser recusada).
+
+Usei o Claude pra implementar a mitigação que já tinha sido identificada, mas não implementada, no Encontro 3: combinar a distância do embedding com uma lista de palavras-chave do domínio, na mesma lógica do lgpd_policy.py. Criei o arquivo src/domain_keywords.py com o vocabulário de domínio — importante: todos os termos vêm de dados reais do projeto (nomes dos 5 produtos em data/structured/products.json, valores reais de module e doc_type presentes nos metadados do índice, termos operacionais conferidos nos manuais/políticas), não foram inventados.
+
+A lógica em is_out_of_scope() ficou: se a pergunta cita um termo real do domínio VendeFácil, ela nunca é recusada por "fora de escopo", independente da distância; só cai na checagem de distância quando não há nenhum termo de domínio.
+
+Também atualizei src/check_threshold.py pra mostrar, além da distância, se a palavra-chave bateu e qual é a decisão final combinada — pra eu poder validar a correção com números reais, não só teoricamente.
+
+Resultado real, rodando python src/check_threshold.py na minha máquina:
+
+Rodada	Threshold	Acertos	O que mudou
+Encontro 3 (registrado no README)	0.9	6/8	Baseline, sem a correção
+Hoje, 1ª rodada (com keyword, threshold ainda em 0.9)	0.9	7/8	O falso positivo ("sincronização de estoque") foi corrigido pela palavra-chave. Restou 1 erro: "quem descobriu o Brasil" (distância 0.8240) ainda passava como dentro do escopo porque 0.8240 < 0.9
+Hoje, 2ª rodada (threshold ajustado)	0.80	8/8	Com a tabela da 1ª rodada, vi que a distância da pergunta errada (0.8240) tinha uma margem segura até a distância da pergunta "fora de escopo" mais próxima (0.9548, "Qual a capital da França?"). Baixei o threshold pra 0.80 no .env e rodei de novo: os 8 casos acertaram, sem piorar nenhum dos que já estavam corretos
+
+Ajustei OUT_OF_SCOPE_SCORE_THRESHOLD de 0.9 para 0.80 no .env (arquivo local, não commitado - só o .env.example fica no repositório, sem valor real).
+
+Uso de IA: usei o Claude para implementar o domain_keywords.py (extraindo os termos de domínio direto dos meus dados reais, não por invenção), ajustar is_out_of_scope() em generate.py pra usar a checagem de palavra-chave antes da distância, e atualizar check_threshold.py pra mostrar a decisão combinada. A decisão de qual valor de threshold usar (0.80) eu tomei em cima da tabela real que rodei na minha máquina, comparando a distância da pergunta que errava com a distância da pergunta "fora de escopo" mais próxima dela.
+
+Resumo do dia
+
+Entreguei hoje:
+
+benchmark/questions_and_ground_truth.json na raiz do projeto (ver bloco anterior).
+src/domain_keywords.py: vocabulário de domínio real, usado como primeira camada do detector de fora de escopo.
+src/generate.py: is_out_of_scope() atualizado para combinar palavra-chave de domínio + distância de embedding.
+src/check_threshold.py: atualizado para mostrar a decisão combinada (keyword + distância) por pergunta.
+.env local: OUT_OF_SCOPE_SCORE_THRESHOLD ajustado de 0.9 para 0.80, com base em dados reais.
+Pendência do Encontro 3 resolvida: 8/8 de acerto no teste de calibração (antes: 6/8), validado rodando contra o índice real, não simulado.
+
+Ficou pendente:
+
+Escrever eval/run_benchmark.py e eval/judge_prompt.py para rodar as 24 perguntas reais do benchmark.
+Medir a RAG Triad (Context Relevance, Answer Relevance, Groundedness).
+Escrever RELATORIO.md.
+Montar a interface de demonstração.
+Integrar busca híbrida + filtro no mesmo fluxo de recuperação (pendência já registrada desde o Encontro 2).
+
+Bloqueios em aberto:
+
+Nenhum bloqueio técnico. Já tenho a chave de API em mãos para os próximos passos que exigem chamar o LLM.
+
+Próximo passo:
+
+Escrever eval/run_benchmark.py e rodar as 24 perguntas reais contra o pipeline completo.
+
+Uso de assistentes de IA:
+
+Claude usado para implementar a correção do detector de fora de escopo (arquivo novo domain_keywords.py, ajuste em generate.py e check_threshold.py) e para ajudar a interpretar a tabela de resultados reais na hora de decidir o novo valor do threshold. Todos os testes foram executados por mim, na minha máquina, contra o índice real.
