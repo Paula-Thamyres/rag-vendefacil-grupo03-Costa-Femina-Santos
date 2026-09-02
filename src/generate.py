@@ -1,38 +1,3 @@
-"""
-Etapa 3 - itens 2 e 3: síntese estruturada com citação de evidência
-e guardrails de LGPD.
-
-Pipeline (`answer_question`):
-
-    pergunta
-       │
-       ▼
-    1) classify_question()  -> recusar / mascarar / responder   (lgpd_policy.py)
-       │
-       ▼
-    2) recuperação (Query Analyzer + busca filtrada, ou híbrida se não
-       houver filtro) -> chunks candidatos                        (Etapa 2)
-       │
-       ├── sem chunks relevantes            -> recusa (sem_evidencia)
-       ├── só chunks "restrito"             -> recusa (lgpd), 2ª camada de defesa
-       ├── categoria == "recusar"           -> recusa (lgpd), SEM chamar o LLM
-       │
-       ▼
-    3) monta o contexto (chunk_id + filepath + texto) e chama o LLM
-       pedindo saída estritamente no formato RAGResponse (JSON)     (item 2)
-       │
-       ▼
-    4) valida com Pydantic; se inválido, pede pro LLM corrigir (retry)
-       │
-       ▼
-    5) se categoria == "mascarar", ofusca e-mail/telefone/CPF/cartão
-       na resposta final e nas citações antes de devolver             (item 3)
-
-Toda resposta não-recusada sai com pelo menos uma `SourceEvidence`
-(filepath + chunk_id + trecho literal), conforme exigido no critério de
-pronto da Etapa 3.
-"""
-
 import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -47,6 +12,7 @@ from query_analyzer import QueryAnalyzer
 from query_index import load_index
 from schema import RAGResponse, SourceEvidence
 from search import FilteredVectorSearch
+from domain_keywords import contains_domain_keyword
 
 SYSTEM_PROMPT = """\
 Você é o assistente RAG interno da VendeFácil Tecnologia Ltda.
@@ -111,17 +77,7 @@ def _refusal(reason: str, message: str) -> RAGResponse:
 def retrieve(question: str, vectorstore, analyzer: QueryAnalyzer,
              filtered_search: FilteredVectorSearch, hybrid_retriever: HybridRetriever,
              k: int = 5):
-    """
-    Etapa 2 aplicada aqui: se o Query Analyzer extrai algum filtro da
-    pergunta, usamos a busca filtrada (FilteredVectorSearch, item 3 da
-    Etapa 2). Caso contrário, usamos a busca híbrida densa+BM25 com RRF
-    (HybridRetriever, item 2 da Etapa 2), que tende a ter melhor recall
-    quando não há um filtro estruturado óbvio.
 
-    A integração completa "híbrida + filtro no mesmo fluxo" ainda está
-    pendente (ver ACOMPANHAMENTO.md, Encontro 2) e fica registrada como
-    próximo passo.
-    """
     filters = analyzer.analyze(question).to_dict()
 
     if filters:
@@ -133,19 +89,10 @@ def retrieve(question: str, vectorstore, analyzer: QueryAnalyzer,
 
 
 def is_out_of_scope(question: str, vectorstore, threshold: float = None) -> bool:
-    """
-    Heurística de "fora de escopo": se o chunk mais parecido da base ainda
-    assim está muito distante da pergunta, a pergunta provavelmente não tem
-    relação com a operação da VendeFácil (ex.: "quem descobriu o Brasil?").
 
-    O FAISS (langchain-community) devolve distância L2 por padrão: quanto
-    MENOR o score, mais parecido. `threshold` é o valor máximo aceitável.
+    if contains_domain_keyword(question):
+        return False
 
-    IMPORTANTE: esse limiar precisa ser calibrado rodando algumas perguntas
-    de dentro e de fora do escopo contra o índice real (ver bloco
-    `if __name__ == "__main__"` no fim deste arquivo) e ajustando
-    OUT_OF_SCOPE_SCORE_THRESHOLD no .env/config.py conforme o resultado.
-    """
     threshold = threshold if threshold is not None else config.OUT_OF_SCOPE_SCORE_THRESHOLD
     results = vectorstore.similarity_search_with_score(question, k=1)
     if not results:
@@ -292,5 +239,5 @@ if __name__ == "__main__":
                 question, vectorstore, analyzer, filtered_search, hybrid_retriever
             )
             print(response.model_dump_json(indent=2, exclude_none=False))
-        except Exception as error:  # nunca engolir o erro em silêncio
+        except Exception as error:
             print(f"ERRO ao gerar resposta: {error}")
