@@ -82,7 +82,11 @@ def retrieve(question: str, vectorstore, analyzer: QueryAnalyzer,
 
     if filters:
         _, docs = filtered_search.search(question, k=k, use_filters=True)
-        return docs, filters
+        if docs:
+            return docs, filters
+        # Combinação de filtros não bateu com nenhum chunk (ex.: campos que
+        # não coexistem no mesmo documento) - cai para a busca híbrida sem
+        # filtro em vez de recusar por falta de evidência.
 
     fused = hybrid_retriever.hybrid_search(question, k=k)
     return [doc for doc, _score in fused], filters

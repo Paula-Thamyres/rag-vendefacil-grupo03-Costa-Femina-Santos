@@ -66,8 +66,11 @@ REFUSE_PATTERNS = [
     r"\bsenhas\b",
     r"\btoken\b",
     r"credencia",                      # credencial, credenciais
-    r"chave de api",
+    r"\bchave\b.{0,40}\bapi\b",        # "chave de api", "chave secreta de API de Produção"
+    r"\bapi\b.{0,40}\bchave\b",
     r"\bapi key\b",
+    r"\bsegredo",                      # segredo, segredos (ex.: "segredo JWT")
+    r"\bjwt\b",
     r"\bsaude\b",
     r"atestado",
     r"diagnostic",

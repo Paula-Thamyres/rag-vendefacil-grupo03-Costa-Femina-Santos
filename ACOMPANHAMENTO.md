@@ -434,3 +434,64 @@ Escrever eval/run_benchmark.py e rodar as 24 perguntas reais contra o pipeline c
 Uso de assistentes de IA:
 
 Claude usado para implementar a correção do detector de fora de escopo (arquivo novo domain_keywords.py, ajuste em generate.py e check_threshold.py) e para ajudar a interpretar a tabela de resultados reais na hora de decidir o novo valor do threshold. Todos os testes foram executados por mim, na minha máquina, contra o índice real.
+
+---
+
+Atividade fora do encontro síncrono - 2026-09-01 (continuação 2)
+
+Etapa: 4 - Execução do benchmark de 24 perguntas, medição da RAG Triad e correção de duas falhas encontradas
+
+Relato individual - Paula Thamyres da Silva Femina
+
+Com a pendência do detector de fora de escopo resolvida, segui pro que realmente faltava da Etapa 4: escrever o eval/run_benchmark.py e o eval/judge_prompt.py e rodar as 24 perguntas de verdade contra o pipeline completo (índice FAISS real + LLM real), não só ler o gabarito.
+
+Antes de rodar, corrigi um problema de configuração: o .env tinha uma chave da Groq (gsk_...) mas sem OPENAI_BASE_URL configurado, e o GENERATION_MODEL estava como gpt-4o-mini, que não existe na Groq - a primeira tentativa deu 401 (Incorrect API key) porque a chave estava sendo mandada pra API da OpenAI de verdade. Ajustei o .env local pra apontar pro endpoint da Groq (https://api.groq.com/openai/v1) e troquei o modelo pra openai/gpt-oss-120b.
+
+O eval/run_benchmark.py decide se uma pergunta deveria ser recusada olhando o texto do próprio ground_truth_answer (se começa com "RECUSA DE RESPOSTA" ou "FORA DO ESCOPO"), em vez de manter uma lista de IDs marcados à mão - isso trata certo a Q17, que está na categoria "Guardrails & LGPD" mas é a única do grupo que espera resposta normal, não recusa. Pra perguntas que esperam recusa, o script confere direto (recusou ou não, com o motivo certo); pras outras, chama um segundo LLM como juiz (eval/judge_prompt.py), que avalia Context Relevance, Groundedness e Answer Relevance (RAG Triad, sem olhar o gabarito) e separadamente confere cobertura dos pontos-chave contra o gabarito, dando um veredito final de pass/fail por pergunta.
+
+Na primeira rodada completa (24 perguntas), bati num rate limit da Groq (tier gratuito, 8000 tokens/minuto) numa das perguntas. Adicionei retry automático com espera no run_benchmark.py pra isso não derrubar a rodada inteira.
+
+Achado crítico (Q24): o pipeline respondeu com a chave secreta de produção da Stripe e o segredo JWT reais, extraídos de um e-mail interno, quando deveria ter recusado. Investiguei a causa: o classify_question() em lgpd_policy.py tinha o padrão r"chave de api" (frase exata), mas a pergunta dizia "chave secreta de API" - a palavra no meio quebrava o match. A segunda camada de defesa (has_only_restricted_docs) também não pegou, porque esse e-mail não está marcado sensitivity="restrito" na ingestão. Corrigi o regex pra aceitar "chave ... api" com palavras no meio, mais segredo/jwt como gatilhos novos, e validei rodando src/test_lgpd_policy.py de novo (18/18 OK, sem regressão nos casos que já passavam).
+
+Segundo achado: muitas perguntas que deveriam ser respondidas normalmente estavam sendo recusadas por "falta de evidência". Investiguei com o QueryAnalyzer isolado e confirmei: ele combina filtros de metadados de um jeito que às vezes zera a busca - ex.: a palavra "cliente" na pergunta trava doc_type=customer, e combinado com module=pay e customer_id=CUST008 ao mesmo tempo, não bate com nenhum chunk (os logs do sistema não têm doc_type=customer). Corrigi o retrieve() em generate.py pra cair pra busca híbrida sem filtro quando a busca filtrada retorna zero documentos, em vez de recusar direto.
+
+Evolução do resultado, rodando o benchmark completo (24 perguntas) do zero a cada mudança:
+
+Rodada	PASS	O que mudou
+1ª rodada (antes de qualquer correção)	5/24	Baseline, com o vazamento da Q24 e várias recusas por filtro zerado
+2ª rodada (depois do fix do lgpd_policy.py)	6/24	Q24 passou a recusar corretamente
+3ª rodada (depois do fallback no retrieve())	8/24	Q11 e Q18 pararam de ser recusadas à toa por filtro zerado
+
+Uso de IA: usei o Claude pra escrever eval/judge_prompt.py e eval/run_benchmark.py do zero, rodar as 24 perguntas contra o índice e a API reais, investigar a causa de cada falha (inclusive rodando um script isolado pra confirmar o que o QueryAnalyzer estava extraindo de filtro pra cada pergunta problemática, não só lendo o código), implementar as duas correções e validar cada uma rodando os testes existentes antes e depois. A decisão de até onde corrigir hoje - parar antes de mexer em chunking/embedding - foi minha, depois de ver que as falhas restantes já não eram mais bug mecânico.
+
+Resumo do dia
+
+Entreguei hoje:
+
+eval/judge_prompt.py: prompt do juiz LLM (RAG Triad: context_relevance, groundedness, answer_relevance, mais cobertura dos pontos-chave contra o gabarito).
+eval/run_benchmark.py: roda as 24 perguntas contra o pipeline completo, com retry pra rate limit da API.
+eval/results.json e RELATORIO.md: resultado bruto e relatório legível de uma execução real do benchmark.
+src/lgpd_policy.py: regex corrigido - fecha o vazamento de credencial encontrado na Q24.
+src/generate.py: retrieve() com fallback pra busca híbrida quando o filtro combinado zera a busca.
+.env local: OPENAI_BASE_URL adicionado (endpoint da Groq) e GENERATION_MODEL trocado pra openai/gpt-oss-120b, pra bater com a chave da Groq que já estava configurada.
+RAG Triad medida (Context Relevance, Groundedness, Answer Relevance) via juiz LLM, perguntas a perguntas, registrada em eval/results.json e resumida em RELATORIO.md.
+Resultado do benchmark: 8/24 perguntas com PASS (21% -> 33%), 0 erros de execução, sem o vazamento de credencial da Q24.
+
+Ficou pendente:
+
+16 perguntas ainda falham - não mais por bug mecânico de filtro, e sim por profundidade/qualidade de recuperação (k=5, tamanho de chunk, ou o modelo de embedding all-MiniLM-L6-v2 sendo fraco pra certas buscas, tipo agregação - "qual cliente tem o maior MRR" - ou lookup exato por ID). Corrigir isso de verdade provavelmente exige mexer em decisão de Etapa 1/2 (chunk, k, ou trocar de embedding) e reindexar o FAISS - decidi não fazer isso sozinha hoje e deixar pra discutir com o grupo.
+Corrigir a descrição de benchmark/questions_and_ground_truth.json, que ainda diz "20 perguntas" apesar de ter 24 (o script não depende desse texto pra funcionar, mas fica errado pra quem ler o arquivo).
+Montar a interface de demonstração (não iniciada).
+Integração busca híbrida + filtro continua só parcialmente resolvida: hoje só tratei o caso do filtro zerar a busca; ainda não existe uma fusão de verdade entre busca filtrada e híbrida quando o filtro retorna resultado pobre (mas não-zero).
+
+Bloqueios em aberto:
+
+Nenhum bloqueio técnico. O tier gratuito da Groq tem limite baixo de tokens/minuto (8000 TPM) - contornei com retry automático, mas pode valer considerar upgrade de tier se o grupo for rodar o benchmark com frequência.
+
+Próximo passo:
+
+Decidir com o grupo se vale investir em melhorar a recuperação (k, chunking, embedding) antes da entrega, ou documentar as 16 falhas como limitação conhecida da Etapa 4 e focar na interface de demonstração.
+
+Uso de assistentes de IA:
+
+Claude usado para escrever eval/judge_prompt.py e eval/run_benchmark.py do zero, executar o benchmark contra o índice e a API reais mais de uma vez (antes e depois de cada correção), diagnosticar a causa raiz de cada falha rodando scripts de diagnóstico direto (não só lendo o código-fonte), implementar as duas correções em lgpd_policy.py e generate.py, e validar cada uma contra os testes automatizados existentes (18/18 em test_lgpd_policy.py, sem regressão). Todas as decisões de escopo - corrigir o vazamento e o fallback de filtro, mas não mexer em chunking/embedding/reindexação hoje - foram minhas, com base nos resultados reais que o Claude rodou e me mostrou.
