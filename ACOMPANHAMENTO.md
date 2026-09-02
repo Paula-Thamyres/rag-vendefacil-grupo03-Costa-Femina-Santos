@@ -495,3 +495,43 @@ Decidir com o grupo se vale investir em melhorar a recuperação (k, chunking, e
 Uso de assistentes de IA:
 
 Claude usado para escrever eval/judge_prompt.py e eval/run_benchmark.py do zero, executar o benchmark contra o índice e a API reais mais de uma vez (antes e depois de cada correção), diagnosticar a causa raiz de cada falha rodando scripts de diagnóstico direto (não só lendo o código-fonte), implementar as duas correções em lgpd_policy.py e generate.py, e validar cada uma contra os testes automatizados existentes (18/18 em test_lgpd_policy.py, sem regressão). Todas as decisões de escopo - corrigir o vazamento e o fallback de filtro, mas não mexer em chunking/embedding/reindexação hoje - foram minhas, com base nos resultados reais que o Claude rodou e me mostrou.
+
+---
+
+## Encontro 4 - 2026-09-02
+
+Relato individual - Paula Thamyres da Silva Femina
+
+**Etapa:** 4 - Revisão dos resultados do benchmark e alinhamento sobre os próximos passos
+
+### Relato individual - Paula Thamyres da Silva Femina
+
+Hoje não fiz mudança de código. Depois de fechar ontem a execução completa do benchmark (8/24 PASS, vazamento da Q24 corrigido, fallback de filtro no `retrieve()`), usei o dia pra revisar com calma o que ficou registrado em `eval/results.json` e `RELATORIO.md` e confirmar que a análise das 16 falhas restantes está bem descrita: não são mais bugs mecânicos de filtro, e sim limitação de profundidade/qualidade de recuperação (k=5, tamanho de chunk, e o embedding `all-MiniLM-L6-v2` indo mal em agregação e lookup exato por ID).
+
+Também revi as pendências deixadas em aberto ontem - a descrição desatualizada em `benchmark/questions_and_ground_truth.json` (ainda diz "20 perguntas", são 24), a interface de demonstração (não iniciada) e a integração busca híbrida + filtro (só parcialmente resolvida) - pra entender o que ainda falta antes da entrega e poder discutir prioridade com o grupo.
+
+Como já tinha entregado as duas partes da Etapa 4 (correção do detector de fora de escopo e execução do benchmark com as duas correções), hoje deixei a continuação com os demais com partes da Etapa 4 (interface de demonstração e a decisão sobre mexer em chunking/embedding). Avisei o professor que eu estava revisando e entendendo os resultados enquanto o grupo dava sequência.
+
+**Uso de IA:** usei o Claude pra reler os artefatos gerados ontem (`results.json`, `RELATORIO.md`) e organizar, em texto corrido, os pontos que preciso levar pro grupo decidir (investir em melhorar recuperação vs. documentar como limitação conhecida). Não houve geração ou alteração de código hoje.
+
+### Resumo do dia
+
+**Entreguei hoje:**
+- Revisão de `eval/results.json` e `RELATORIO.md` da execução de ontem, confirmando que a causa das 16 falhas restantes está corretamente diagnosticada como limitação de recuperação, não bug.
+- Lista organizada de pendências pra discutir com o grupo (descrição do JSON de benchmark, interface de demonstração, fusão busca híbrida + filtro, decisão sobre chunking/embedding).
+
+**Ficou pendente:**
+- Nenhuma mudança de código hoje - ficou com os colegas dar sequência na interface de demonstração e na decisão sobre melhorar recuperação.
+
+**Bloqueios em aberto:**
+- Nenhum bloqueio técnico. Dependência de alinhamento com o grupo sobre prioridade dos próximos passos.
+
+**Próximo passo:**
+- Retomar com o grupo a decisão: investir em k/chunking/embedding antes da entrega, ou documentar as 16 falhas como limitação conhecida e focar na interface de demonstração.
+
+**Uso de assistentes de IA:**
+- Claude usado para revisar os resultados já gerados e organizar os pontos de discussão para o grupo. Nenhuma alteração de código foi feita ou proposta hoje.
+
+---
+
+
