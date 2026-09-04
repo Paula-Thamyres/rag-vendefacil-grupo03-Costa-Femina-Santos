@@ -534,4 +534,62 @@ Como já tinha entregado as duas partes da Etapa 4 (correção do detector de fo
 
 ---
 
+## Encontro 5 - 2026-04-09
+
+**Etapa:** 4 - Preparação da apresentação final (Canva) e tentativa de retomar testes com LLM
+
+### Relato individual - Paula Thamyres da Silva Femina
+
+Hoje o foco não foi mais código novo, e sim preparar a apresentação do projeto, que estou montando no Canva. Antes de escrever qualquer slide, pedi uma análise completa do repositório (README, ACOMPANHAMENTO.md, código-fonte e `eval/results.json`/RELATORIO.md do benchmark) pra confirmar com segurança o que realmente falta entregar. A confirmação: o pipeline inteiro (ingestão, busca, guardrails de LGPD, avaliação) já está pronto e testado - a única peça que falta de verdade é a interface de demonstração (camada visual/interativa), que ainda não foi iniciada.
+
+Com essa base, revisei rapidamente a arquitetura do pipeline principal e depois três arquivos-chave da Etapa 2 (`query_analyzer.py` e `search.py`/retrieval) pra conseguir explicar tecnicamente essa etapa com segurança na hora da arguição, e não só decorar o que está escrito no ACOMPANHAMENTO.md.
+
+A partir disso montei o conteúdo de 15 slides (texto pronto pra colar no Canva) com uma explicação em linguagem natural de cada slide, pra eu entender de verdade o que vou apresentar e não só ler em voz alta. Montei também uma seção grande de perguntas prováveis do professor, organizada por tema (arquitetura, ingestão, recuperação, guardrails de LGPD, avaliação, limitações), pra eu treinar as respostas antes da apresentação.
+
+Uma decisão que tomei foi deixar de fora dos slides a parte que corrigi ao longo do projeto, mas mantendo uma observação separada me preparando caso o professor pergunte sobre dificuldades ou correções - isso está bem documentado no ACOMPANHAMENTO.md e decidi tratar como ponto positivo (mostra rigor no processo), não como algo a esconder ou temer.
+
+Os destaques que separei pra puxar na apresentação, porque considero os pontos mais fortes do projeto: a decisão de classificar sensibilidade e LGPD por regra determinística (e não pelo LLM), a exigência de citação de evidência obrigatória validada por Pydantic, e o diagnóstico honesto de que o resultado do benchmark (8/24 PASS) reflete uma limitação de recuperação, não de alucinação - já que a qualidade das respostas efetivamente dadas está quase perfeita (RAG Triad perto de 5/5).
+
+Também pedi pra desmontar, frase por frase, a descrição "Automação comercial: consulta inteligente a 6+ fontes de dados heterogêneas, com guardrails de LGPD", pra ter certeza de que consigo explicar cada termo com as próprias palavras (o que é "automação comercial" no contexto da VendeFácil fictícia, o que "consulta inteligente" quer dizer na prática, por que as fontes são "heterogêneas" - os 6 formatos diferentes mais o `sales.csv` extra - e o que o guardrail de LGPD decide entre recusar, mascarar ou responder normalmente).
+
+Na sequência, tentei retomar um teste que dependia de chamada de LLM (via Groq) e caiu de novo no mesmo erro de limite de tokens diário, com o mesmo identificador de organização de uma tentativa anterior (`org_01kz6fzdz9eeztq9685mvcs411`). Isso confirmou que o limite (TPD - tokens per day) é por conta/organização da Groq, não por chave individual - ou seja, gerar uma chave nova na mesma conta não resolve, porque a cota já estava zerada antes de eu trocar a chave. Conferi que o reset é diário (a cada 24h a partir do primeiro uso do dia) e que dá pra acompanhar o horário exato e o consumo em `https://console.groq.com/settings/billing`, em "Rate Limits"/"Usage".
+
+Levantei as opções concretas pra não perder mais tempo tentando de novo: esperar o reset (mais simples, sem custo); criar uma conta Groq nova com outro e-mail se precisasse rodar ainda hoje; ou usar temporariamente a conta de outro integrante da dupla em outro provedor (ex.: OpenAI), se disponível. Decidi pausar os testes por hoje em vez de ficar tentando de novo a cada poucos minutos, já que cada tentativa que falha também consome cota.
+
+Pra não perder o contexto de um dia pro outro (o limite reseta em 24h e eu não teria como "lembrar" os detalhes de hoje numa conversa nova), pedi que fosse gerado um PDF de continuidade bem detalhado com tudo que foi feito hoje e tudo que ainda falta, justamente para eu anexar amanhã e retomar sem perder tempo nem repetir perguntas.
+
+**Uso de IA:** usei o Claude para analisar o repositório inteiro (README, ACOMPANHAMENTO.md, código-fonte e resultados do benchmark) e montar o conteúdo dos 15 slides com a explicação de cada um, organizar a seção de perguntas prováveis do professor por tema, explicar em detalhe a frase "Automação comercial: consulta inteligente a 6+ fontes de dados heterogêneas, com guardrails de LGPD", diagnosticar a causa do erro recorrente de limite de tokens da Groq (mesma organização entre chaves diferentes) e levantar as opções concretas pra contornar isso, e gerar o PDF de continuidade com o detalhamento do dia. As decisões de conteúdo da apresentação (o que destacar, o que deixar de fora sobre a correção feita, e a escolha de pausar os testes por hoje em vez de insistir) foram minhas.
+
+### Resumo do dia
+
+**Entreguei hoje:**
+
+- Confirmação, via análise do repositório, de que a única entrega pendente do projeto é a interface de demonstração - o restante do pipeline (ingestão, busca, guardrails de LGPD, avaliação) já está pronto e testado.
+- Conteúdo de 15 slides pronto pra colar no Canva, com explicação em linguagem natural de cada um.
+- Seção de perguntas prováveis do professor, organizada por tema (arquitetura, ingestão, recuperação, guardrails de LGPD, avaliação, limitações).
+- Nota de preparação para perguntas sobre dificuldades/correções ao longo do projeto, sem expor esse ponto diretamente nos slides.
+- Explicação detalhada, termo a termo, da frase-chave "Automação comercial: consulta inteligente a 6+ fontes de dados heterogêneas, com guardrails de LGPD".
+- Diagnóstico do erro recorrente de limite de tokens da Groq: confirmado que o TPD é por organização, não por chave.
+- PDF de continuidade com o detalhamento completo do que foi feito hoje e do que falta, para retomar amanhã sem perda de contexto.
+
+**Ficou pendente:**
+
+- Colar o conteúdo gerado hoje efetivamente no Canva e finalizar a montagem visual dos slides.
+- Montar a interface de demonstração (não iniciada).
+- Retomar qualquer teste que dependa de chamada de LLM somente após o reset da cota diária da Groq (ou usando uma conta/provedor alternativo, se necessário).
+- Ensaiar a apresentação e as respostas às perguntas prováveis do professor antes da entrega.
+
+**Bloqueios em aberto:**
+
+- Cota diária de tokens (TPD) da Groq esgotada na conta usada pelo grupo - bloqueio temporário, resolve sozinho no reset (~24h), sem impacto no conteúdo já preparado para a apresentação.
+
+**Próximo passo:**
+
+- Colar os slides no Canva e revisar visualmente a apresentação.
+- Avançar na interface de demonstração enquanto a cota da Groq não reseta, já que essa parte não depende de chamada de API.
+- Quando a cota resetar, validar qualquer teste pendente que dependa do LLM.
+
+**Uso de assistentes de IA:**
+
+- Claude usado para analisar o repositório completo e preparar o material de apresentação (slides + explicação + perguntas prováveis), explicar a frase-chave do projeto em detalhe, diagnosticar a causa raiz do erro de cota da Groq e gerar o PDF de continuidade do dia. Todas as decisões sobre o que destacar na apresentação e sobre pausar os testes por hoje foram minhas.
 
